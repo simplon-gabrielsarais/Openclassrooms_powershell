@@ -1,0 +1,45 @@
+#Scripte_04 version 1.0
+
+$ListeDesPc = Get-ADComputer -filter {name -like "DSK*"} -Properties *| Select Name 	# obtien la liste des PC enregistrés dans AD commençant par "DSK" et l'enregistra dans l'array $ListeDesPc
+$Month = Get-Date -Format "MMMMMM" 							# Enregistre dans la variable $Mounth le mois en cours en plaine lettre
+$Year = Get-Date -Format "yyyy"								# Enregistre dans la variable $Year l'année en cours 
+$Day = Get-Date -Format "dddddd dd"							# Enregistre dans la variable $Day le jour en cours au format "Jour 00"
+foreach($Ordi in $ListeDesPc) {									# Pour chaque ordinateur ($Ordi) dans l'array $ListeDesPc
+	$Source = "\\" + $Ordi.Name + "\C$\Users"							# Enregistre dans dans la variable $Source le chemin vers le dossier "Users" de l'ordinateur à copier
+	$Destination = "F:\SAV\Utilisateurs\$Year\$Month\$Day\" + $Ordi.Name				# Enregistre dans dans la variable $Destination le chemin vers le dossier dasn lequel serons enregistrés les fichiers utilisateurs 
+	$logfolder = "F:\SAV\logs\$Year\$Month\$Day\" + $Ordi.Name					# Enregistre dans dans la variable $logfolder le chemin vers le dossier dasn lequel serons enregistrés les logs
+		if (Test-Path $logfolder) {									# Si Le dossier décrit dans $logfolder existe
+   			"Le dossier $logfolder exists!"								# afficher "Le dossier $logfolder exists!"
+} 
+		else {										#sinon
+    			"création du dossier $logfolder"							# Afficher "création du dossier $logfolder"
+			New-Item -Path $logfolder -ItemType Directory						# Créer le dossier $logfolder
+}
+	$log = $logfolder + "\log.txt"																# de l'ordinateur ($Ordi) vers le serveur ($Destination). Voir si dessous pour les paramètres								# Enregiste dans la variable $log le chemin et le nom du fichier log de robocopy
+
+Robocopy $Source $Destination /copyall /e /XF desktop.ini NTUser.dat /ZB /MT:1 /XJ /XD Temp AppData /W:1 /R:1 /log:$log 	# lance robocopy avec les parametres nécessaire pour copier les fichier utilisateur ($Source)
+}
+	if ($lastexitcode -le 8) {
+		"La copie, c'est déroulé sans encombre"
+}
+		else {
+		"erreur robocopy"
+}
+
+#Ce script permet de copier depuis chaque ordinateur allumé, connecté au réseau et enregistré sur Active Directory les fichiers dans le dossier User.
+#Il a été conçu pour être lancé à l'aide d'une tache planifiée tous les soirs.
+
+#Vous pouvez récupérer les fichier enregistrés dans F:\SAV\Utilisateurs\Année\mois\jour 00\nom de l'ordianteur
+#et les logs dans F:\SAV\logs\Année\mois\jour 00\nom de l'ordianteur\log.txt
+#
+#les différent switches Robocopy:
+#	/copyall : copie toutes les informations des fichiers.
+#	/e : copie les sous dossier, même si ils sont vides.
+#	/XF : exclus la copie des fichiers dont le nom correspond a ce qui est inscrit aprés le switch (ici desktop.ini et NTUser.dat).
+#	/ZB : permet de reprendre la copy d'un fichier là où elle a été coupée si coupure il y a.
+#	/MT:1 : permet de définir le nombre de thread du processeur utilisé pour la copy,  ici 1.
+#	/XJ : exclu les points de jonction.
+#	/XD : exclus la copie des dossiers dont le nom correspond a ce qui est inscrit aprés le switch (ici Temp et AppData).
+#	/W:1 : défini combien de seconde doivent s'écouler entre deux essais de copie.
+#	/R:1 : définie combien d'essai de copie seront fait.
+#	/log:chemin : défini où seront enregistés les logs.
