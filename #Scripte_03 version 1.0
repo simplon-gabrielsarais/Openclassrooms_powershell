@@ -1,0 +1,24 @@
+#Scripte_03 version 1.0
+
+Try									# Test du Code (fontion Try/Catch/finally)
+{
+$coderetour = 1
+$nom = Read-Host "Merci de Rentrer le Nom de l’Utilisateur à Créer"	# Demande à l'opérateur de rentrer le nom de l'utilisateur.
+	$nom = $nom.Substring(0,1).ToUpper() + $nom.Substring(1,$nom.Length-1)	# S'assure qu'il y ai bien une majuscule au début du nom.
+
+	$prenom = Read-Host "Merci de Rentrer le Prenom de l’Utilisateur à Créer"	# Demande à l'opérateur de rentrer le prenom de l'utilisateur.
+	$prenom = $prenom.Substring(0,1).ToUpper() + $prenom.Substring(1,$prenom.Length-1)	# S'assure qu'il y ai bien une majuscule au début du prenom.
+$login = $prenom.Substring(0,1) + $nom # Définit la variable $login en utilisant la première lettre de la variable $prenom suivi de la variable $nom.
+
+Get-ADPrincipalGroupMembership -Identity $login | Select Name | Out-File C:\SAVE\Projet07_SARAIS_AD03.txt 			# Récupére la liste des noms des groupes AD du dont $user est membre
+														# et l'exporte dans C:\SAVE\Projet07_SARAIS_AD03.txt
+
+Write-Host "le fichier C:\SAVE\Project07_SARAIS_AD03.txt vient d'être créé"					# Notifie l'utilisateur du scripte que le fichier à bien été créé.
+}
+Catch{
+	Write-Host ("Échec de l'exécution du script") -ForegroundColor Red	# Retourne un message d'erreur si le scripte n'a pas pu s'exécuter.
+	$coderetour = 0
+}
+
+
+#Ce script permet en donnant le nom d'un utilisateur AD de récupérer la liste des groupes dont il est membre dans un fichier txt.
