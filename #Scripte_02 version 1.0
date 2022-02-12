@@ -1,0 +1,19 @@
+#Scripte_02 version 1.0
+
+Try									# Test du Code (fontion Try/Catch/finally)
+{
+$coderetour = 1
+$groupe = Read-Host "indiqué le nom du groupe dont vous souhaitez afficher les membres"					# Demande à l'opérateur de rentrer le nom du groupe.
+
+Get-ADGroupMember -Identity $groupe | Select-Object Name | Sort-Object Name | Out-File C:\SAVE\Projet07_SARAIS_AD02.txt # Récupére la liste des noms des membres du groupe AD $groupe
+															# et l'exporte dans C:\SAVE\Projet07_SARAIS_AD02.txt
+
+Write-Host "le fichier C:\SAVE\Project07_SARAIS_AD02.txt vient d'être créé" 						# Notifie l'utilisateur du scripte que le fichier à bien été créé.
+}
+Catch{
+	Write-Host ("Échec de l'exécution du script") -ForegroundColor Red	# Retourne un message d'erreur si le scripte n'a pas pu s'exécuter.
+	$coderetour = 0
+}
+
+
+#Ce script permet en donnant le nom d'un group AD d'en récupérer la liste de ces membres dans un fichier txt.
