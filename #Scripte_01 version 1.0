@@ -1,0 +1,104 @@
+#Scripte_01 version 1.0
+
+
+Try									# Test du Code (fontion Try/Catch/finally)
+{
+	$coderetour = 1
+#Définition des variables principales
+	$nom = Read-Host "Merci de Rentrer le Nom de l’Utilisateur à Créer"	# Demande à l'opérateur de rentrer le nom de l'utilisateur.
+	$nom = $nom.Substring(0,1).ToUpper() + $nom.Substring(1,$nom.Length-1)	# S'assure qu'il y ai bien une majuscule au début du nom.
+
+	$prenom = Read-Host "Merci de Rentrer le Prenom de l’Utilisateur à Créer"	# Demande à l'opérateur de rentrer le prenom de l'utilisateur.
+	$prenom = $prenom.Substring(0,1).ToUpper() + $prenom.Substring(1,$prenom.Length-1)	# S'assure qu'il y ai bien une majuscule au début du prenom.
+
+	$ville = Read-Host "Merci de Rentrer le Nom de la Ville où travail l'Utilisateur à Créer"	# Demande à l'opérateur de rentrer la ville où travail l'utilisateur.
+	$ville = $ville.Substring(0,1).ToUpper() + $ville.Substring(1,$ville.Length-1) # S'assure qu'il y ai bien une majuscule au début de la ville.
+
+	$nomcomplet = "$nom $prenom" # Définit la variable $nomcomplet a partir de la variable $nom et $prenom
+
+	$login = $prenom.Substring(0,1) + $nom # Définit la variable $login en utilisant la première lettre de la variable $prenom suivi de la variable $nom.
+
+	$mdp = Read-Host -AsSecureString "Merci de Rentrer le Mot de Passe de l’Utilisateur à Créer"	# Demande à l'operateur de rentrer le mot de passe de l'Utilisteur et le sécurise.
+
+	$Folder = "F:\User_Folders\$login" # Définit l'emplacement du dossier Utilisateur sur le serveur
+	$homedirectory = "\\SRVADPAR01\$login" # Définit l'emplacement du dossier Utilisateur sur le réseau
+
+		# Création de la variable $departement a partir des UOs.
+			
+			$like = "$ville`_*" # Définition du model a rechercher dans les UOs
+
+			$OU = Get-ADOrganizationalUnit -Filter {Name -like $like} | select name	#Crée un array content les UOs correspondant à la variable $like.
+
+			Write-Host "veuillez sélectionner une UO:"					#
+			For ($i=0; $i -lt $OU.Count; $i++)  {						# Affiche une liste depuis l'array $OU avec en face
+			Write-Host "$($i+1): $($OU.name[$i])"						# de chaque choix un chiffre correspondant.
+			}																					#
+
+			[int]$number = Read-Host "appuyez sur le nombre correspondant à l'UO souhaitée"		# Il est alors demandé a l'opérateur taper le chiffre correspondant à l'UO souhaité.
+
+			Write-Host "vous avez sélectionné $($OU.name[$number-1])."	# Affiche à l'opérateur une confirmation de l'UO choisit
+
+			$departement = $OU.name[$number-1]	# Enregistre le choix d'UO dans une variable $departement. 
+
+	$path = "OU=$departement,OU=$ville,OU=Utilisateurs,DC=ACME,DC=LOCAL" # Définit l'emplacement de l'UO dans lequel on souhaite déplacer l'utilisateur.
+
+# création de l'utilisateur, de son dossier sur le resaux et deplacement de l'utilisateur dans l'uo et le groupe correspondant à son poste.
+
+	# Création d'un dossier à l'emplacement enregistré dans la variable $Folder
+	New-Item `
+		-Path $Folder `
+		-ItemType Directory
+
+	# Création d'un nouvel utilisateur
+	New-ADUser `
+		-Name $nomcomplet `
+		-GivenName $prenom -Surname $nom `
+		-DisplayName $nomcomplet `
+		-SamAccountName $login `
+		-UserPrincipalName "$login@ACME.LOCAL" `
+		-AccountPassword $mdp `
+		-PasswordNeverExpires $true `
+		-CannotChangePassword $true `
+		-Enabled $true -path $path `
+		-City $ville
+
+	# Partage du dossier $login
+	New-SmbShare `
+		-Name $login `
+		-Path $Folder `
+		-ChangeAccess $login
+
+	# Définition des différentes variables pour la  définition des droits NTFS du dossier $login
+		$rights = 'Modify'
+		$type = 'Allow'
+		$InheritanceFlags = 'ContainerInherit, ObjectInherit'
+		$PropagationFlags = 'None'
+		$ACE = New-Object System.Security.AccessControl.FileSystemAccessRule($login,$rights,$InheritanceFlags,$PropagationFlags,$type)
+		$Acl = Get-Acl -Path F:\User_Folders
+		$Acl.AddAccessRule($ACE)
+
+	# Définition des droits NTFS
+	Set-Acl -Path $Folder -AclObject $Acl
+
+	# Définition du dossier $login comme HomeDirectory pour l'utilisateur
+	Set-ADUser -identity $login  -HomeDrive "Z:" -HomeDirectory $homedirectory
+
+	# Ajout de l'utilisateur dans le groupe AD correspondant à son poste
+	Add-ADGroupMember $departement.replace("_", ".") -Members (get-aduser $login)
+}
+Catch{
+	Write-Host ("Échec de la création du profil AD pour " + $nomcomplet) -ForegroundColor Red	# Retourne un message d'erreur si le scripte n'a pas pu s'exécuter.
+	$coderetour = 0
+}
+
+
+#Ce script permet d'assister à la création d'un utilisateur dans Active Directory.
+#Au lancement, il vous sera demandé de rentrer le nom et le prénom de l'utilisateur et le script s'assurera que la première lettre est bien en majuscule.
+#De ces informations, le scripte en déduira le nom complet et le login de l'utilisateur.
+#Il vous sera ensuite demandé de renter la ville où travail l'utilisateur puis le mot de passe que vous souhaitez lui attribuer.
+#Maintenant, le script devrait vous afficher un choix. Vous allez devoir sélectionner, en rentrant de chiffre correspondant à votre choix,
+#le secteur dans lequel travail l'utilisateur. À partir de là, votre travail est fini et le scrit se chargera du reste. Il créera l'utilisateur et le déplacera dans
+#l'UO correspondant aux information que vous avez rentez, lui créera un dossier à son nom sur le serveur avec les bon droits et lui donnera l'accée depuis
+#sa session et déplacera l'utilisateur dans le dossier Active Directory auquel il correspond.
+
+
